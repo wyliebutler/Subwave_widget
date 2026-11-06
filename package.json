@@ -18,8 +18,8 @@
     "icon": "node scripts/generate-icon.js",
     "start": "electron .",
     "pack": "npm run icon && electron-builder --dir",
-    "dist:win": "npm run icon && electron-builder --win nsis portable",
-    "dist:mac": "npm run icon && electron-builder --mac dmg zip --arm64",
+    "dist:win": "npm run icon && electron-builder --win nsis portable --publish never",
+    "dist:mac": "npm run icon && electron-builder --mac dmg zip --arm64 --publish never",
     "dist": "npm run dist:win"
   },
   "build": {
