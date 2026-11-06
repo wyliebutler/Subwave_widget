@@ -4,9 +4,10 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/wyliebutler/Subwave_widget?label=Download&color=e84c30)](https://github.com/wyliebutler/Subwave_widget/releases)
 [![Platform: Windows x64](https://img.shields.io/badge/Platform-Windows%2010%2F11%20(x64)-0a3a92)](#installation)
+[![Platform: macOS Apple Silicon](https://img.shields.io/badge/Platform-macOS%20Apple%20Silicon%20(arm64)-161412)](#macos-apple-silicon--m1m2m3m4)
 [![License: MIT](https://img.shields.io/badge/License-MIT-4fae74)](./LICENSE)
 
-A compact, frameless **Windows desktop radio widget** built for any self-hosted **[SUB/WAVE](https://github.com/perminder-klair/subwave)** station.
+A compact, frameless **desktop radio widget** for **Windows** and **macOS (Apple Silicon)** built for any self-hosted **[SUB/WAVE](https://github.com/perminder-klair/subwave)** station.
 
 SUB/WAVE's full-screen web player is expressive and rich, but keeping an entire browser window open all day takes up valuable desk space. **SubWave Widget** distills the broadcast down to a tiny, tactile desktop companion — preserving **100% of your station's live themes, typography, textures, and metadata** in a footprint smaller than a sticky note.
 
@@ -66,17 +67,19 @@ Collapse the widget with a single click into a sleek ~50px horizontal strip you 
   - Automatically prefers **Opus** (`/stream.opus`) when enabled on the station for high efficiency, falling back cleanly to **MP3** (`/stream.mp3`).
   - Stopping and restarting playback reconnects directly to the **live broadcast edge** rather than replaying stale buffered audio.
   - Built-in stream watchdog automatically recovers from momentary Wi-Fi drops or reverse-proxy disconnects with gentle exponential backoff.
-- **Native Windows 10/11 Integration**
-  - Frameless rounded window with **Pin Always-on-Top** toggle (`floating` z-order).
-  - **System Tray** icon with live on-air indicator dot, now-playing tooltip, and full right-click menu.
-  - Closing (`×`) while streaming tucks the widget into the System Tray so music never cuts out; closing while stopped exits cleanly.
-  - **Windows MediaSession Integration:** Hardware keyboard/headset Play/Pause media keys and the Windows 11 taskbar media flyout (complete with album artwork) work out of the box.
+- **Native Windows & macOS Integration**
+  - Frameless rounded window with **Pin Always-on-Top** toggle (`floating` z-order; floats seamlessly across macOS Spaces & full-screen apps).
+  - **System Tray / macOS Menu Bar** icon with live on-air indicator, now-playing tooltip, and full context menu (including an optional **Hide Dock Icon (Menu Bar Only)** mode on macOS).
+  - Closing (`×`) while streaming tucks the widget into the System Tray / Menu Bar so music never cuts out.
+  - **OS MediaSession Integration:** Hardware keyboard/headset Play/Pause media keys, Windows 11 taskbar media flyout, and macOS Control Center *Now Playing* (complete with album artwork) work out of the box.
 
 ---
 
 ## Installation
 
-Download the latest `.exe` from **[GitHub Releases](https://github.com/wyliebutler/Subwave_widget/releases)**:
+Download the latest build for your platform from **[GitHub Releases](https://github.com/wyliebutler/Subwave_widget/releases)**:
+
+### Windows 10 / 11 (`x64`)
 
 | Package | Best For | Details |
 | --- | --- | --- |
@@ -85,13 +88,25 @@ Download the latest `.exe` from **[GitHub Releases](https://github.com/wyliebutl
 
 > **Windows SmartScreen Note:** Because community builds are unsigned open-source binaries, Windows may show a *"Windows protected your PC"* prompt the first time you run the `.exe`. Click **More info** → **Run anyway**.
 
+### macOS (Apple Silicon — M1/M2/M3/M4)
+
+| Package | Best For | Details |
+| --- | --- | --- |
+| **`SubWave-Widget-arm64.dmg`** | **Standard macOS install (Recommended)** | Open the `.dmg` and drag **SubWave Widget.app** into `/Applications`. |
+| **`SubWave-Widget-arm64.zip`** | **Direct archive** | Unzip and move **SubWave Widget.app** into `/Applications`. |
+
+> **First-Launch Gatekeeper Note (Free Ad-Hoc Build):** Because this open-source build is ad-hoc signed rather than notarized with a paid Apple Developer account, macOS Gatekeeper quarantines browser-downloaded `.dmg`/`.zip` apps on first open. After dragging **SubWave Widget.app** to `/Applications`, run this one-time command in **Terminal** to clear the download quarantine flag:
+> ```bash
+> xattr -cr "/Applications/SubWave Widget.app"
+> ```
+> After running that once, **SubWave Widget** opens normally like any other Mac app. *(Tip: Right-click the Menu Bar icon and enable **Hide Dock Icon (Menu Bar Only)** if you want it to live purely in your Menu Bar!)*
+
 ### Where Settings Are Stored
 
 All user preferences (connected station URL, saved station presets, volume, mute state, pin state, layout mode, theme preference, and window screen coordinates) are stored locally in:
 
-```text
-%APPDATA%\subwave-widget\widget-settings.json
-```
+- **Windows:** `%APPDATA%\subwave-widget\widget-settings.json`
+- **macOS:** `~/Library/Application Support/subwave-widget/widget-settings.json`
 
 Multi-monitor bounds are validated on every launch — if you unplug an external display, the widget automatically snaps back onto your primary screen instead of spawning off-screen.
 
@@ -161,11 +176,12 @@ It communicates exclusively with SUB/WAVE's public/listener HTTP endpoints on yo
 ```text
 Subwave_widget/
 ├── .github/workflows/
-│   └── release.yml          # Automated Windows Installer + Portable GitHub Releases
-├── assets/                  # Generated multi-size .ico + high-DPI system tray PNGs
+│   └── release.yml          # Automated Windows x64 + macOS arm64 GitHub Releases
+├── assets/                  # Multi-size .ico, 512px .png & Retina Menu Bar / Tray icons
 ├── docs/                    # Hero illustration & README UI screenshots
 ├── scripts/
-│   └── generate-icon.js     # Zero-dependency PNG + ICO icon generator
+│   ├── after-pack.js        # Automatic ad-hoc codesign hook for macOS arm64 builds
+│   └── generate-icon.js     # Zero-dependency PNG + ICO + macOS Template icon generator
 ├── src/
 │   ├── main.js              # Electron main process (frameless bounds, tray, settings IPC)
 │   ├── preload.js           # Context-isolated IPC bridge (window.subwaveWidget)
@@ -178,12 +194,12 @@ Subwave_widget/
 
 ### Prerequisites
 
-- **Windows 10 or 11 (x64)**
+- **Windows 10/11 (x64)** or **macOS 12+ (Apple Silicon `arm64`)**
 - **[Node.js](https://nodejs.org/) 20+** and `npm`
 
 ### Run in Development
 
-```powershell
+```bash
 git clone https://github.com/wyliebutler/Subwave_widget.git
 cd Subwave_widget
 npm install
@@ -192,21 +208,21 @@ npm start
 
 *(Note: If your `npm` configuration blocks postinstall scripts via `allowScripts`, run `node node_modules/electron/install.js` once after `npm install` to fetch the local Electron runtime.)*
 
-### Build Distributable Executables
+### Build Distributable Packages
 
-```powershell
-npm run dist
+```bash
+# On Windows (outputs dist/SubWave-Widget-Setup.exe & dist/SubWave-Widget-Portable.exe):
+npm run dist:win
+
+# On macOS Apple Silicon (outputs dist/SubWave-Widget-arm64.dmg & dist/SubWave-Widget-arm64.zip):
+npm run dist:mac
 ```
-
-This generates the icons via `scripts/generate-icon.js` and outputs both executables into `dist/`:
-- `dist/SubWave-Widget-Setup.exe`
-- `dist/SubWave-Widget-Portable.exe`
 
 ---
 
 ## Releasing Updates
 
-A GitHub Actions workflow ([`.github/workflows/release.yml`](./.github/workflows/release.yml)) automatically builds both Windows `.exe` packages and publishes a GitHub Release whenever you push a version tag matching `v*`:
+A GitHub Actions workflow ([`.github/workflows/release.yml`](./.github/workflows/release.yml)) automatically builds **both Windows (`x64`) and macOS Apple Silicon (`arm64`)** packages in parallel and publishes a unified GitHub Release whenever you push a version tag matching `v*`:
 
 ```powershell
 npm version patch   # e.g. bumps 1.0.0 -> 1.0.1 and creates git tag v1.0.1

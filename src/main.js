@@ -11,6 +11,8 @@ const {
 const fs = require('node:fs');
 const path = require('node:path');
 
+const IS_MAC = process.platform === 'darwin';
+
 // Allow tray / media-key triggered live stream playback without gesture blocks
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -29,6 +31,7 @@ const DEFAULT_SETTINGS = {
   volume: 0.8,
   muted: false,
   alwaysOnTop: true,
+  hideDockIcon: false, // macOS only: hide Dock icon to run purely in Menu Bar
   mode: 'card', // 'card' | 'pill'
   bounds: null, // { x, y }
 };
@@ -82,6 +85,57 @@ function saveSettings(patch = {}) {
   return settings;
 }
 
+function applyMacDockVisibility(hideDock) {
+  if (!IS_MAC || !app.dock) return;
+  if (hideDock) {
+    app.dock.hide();
+  } else {
+    app.dock.show().catch(() => {});
+  }
+}
+
+function setupMacApplicationMenu() {
+  if (!IS_MAC) {
+    Menu.setApplicationMenu(null);
+    return;
+  }
+  // Standard Edit roles are required on macOS so Cmd+C / Cmd+V / Cmd+A work in input fields
+  const template = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        {
+          label: 'Quit SubWave Widget',
+          accelerator: 'Command+Q',
+          click: () => {
+            isQuitting = true;
+            app.quit();
+          },
+        },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 function getValidInitialPosition(width, height, savedBounds) {
   const displays = screen.getAllDisplays();
   if (savedBounds && typeof savedBounds.x === 'number' && typeof savedBounds.y === 'number') {
@@ -101,7 +155,7 @@ function getValidInitialPosition(width, height, savedBounds) {
   const primary = screen.getPrimaryDisplay().workArea;
   return {
     x: Math.round(primary.x + primary.width - width - 24),
-    y: Math.round(primary.y + primary.height - height - 24),
+    y: Math.round(primary.y + (IS_MAC ? 24 : primary.height - height - 24)),
   };
 }
 
@@ -109,8 +163,14 @@ function applyAlwaysOnTop(win, enabled) {
   if (!win || win.isDestroyed()) return;
   if (enabled) {
     win.setAlwaysOnTop(true, 'floating');
+    if (IS_MAC) {
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
   } else {
     win.setAlwaysOnTop(false);
+    if (IS_MAC) {
+      win.setVisibleOnAllWorkspaces(false);
+    }
   }
 }
 
@@ -123,7 +183,6 @@ function resizeForMode(targetMode) {
   let nextX = currentBounds.x;
   let nextY = currentBounds.y;
 
-  // If temporarily opening the themes drawer near the bottom of screen, nudge up cleanly
   if (targetMode === 'themes' && currentViewMode !== 'themes') {
     if (nextY + spec.height > display.y + display.height) {
       preExpandY = nextY;
@@ -216,6 +275,22 @@ function buildAppMenuTemplate() {
     ? `${liveState.trackTitle}${liveState.trackArtist ? ` — ${liveState.trackArtist}` : ''}`
     : liveState.stationName;
 
+  const macExtraItems = IS_MAC
+    ? [
+        {
+          label: 'Hide Dock Icon (Menu Bar Only)',
+          type: 'checkbox',
+          checked: Boolean(settings.hideDockIcon),
+          click: () => {
+            const nextHide = !settings.hideDockIcon;
+            saveSettings({ hideDockIcon: nextHide });
+            applyMacDockVisibility(nextHide);
+            refreshTray();
+          },
+        },
+      ]
+    : [];
+
   return [
     {
       label: `📻 ${liveState.stationName || 'SUB/WAVE Radio'}`,
@@ -265,6 +340,7 @@ function buildAppMenuTemplate() {
         refreshTray();
       },
     },
+    ...macExtraItems,
     {
       label: 'Themes',
       submenu: themeItems,
@@ -275,7 +351,7 @@ function buildAppMenuTemplate() {
     },
     { type: 'separator' },
     {
-      label: mainWindow && mainWindow.isVisible() ? 'Hide Widget to Tray' : 'Show Widget',
+      label: mainWindow && mainWindow.isVisible() ? `Hide Widget to ${IS_MAC ? 'Menu Bar' : 'Tray'}` : 'Show Widget',
       click: () => {
         if (!mainWindow) return;
         if (mainWindow.isVisible()) {
@@ -297,6 +373,7 @@ function buildAppMenuTemplate() {
     { type: 'separator' },
     {
       label: 'Quit SubWave Widget',
+      accelerator: IS_MAC ? 'Command+Q' : undefined,
       click: () => {
         isQuitting = true;
         app.quit();
@@ -306,12 +383,21 @@ function buildAppMenuTemplate() {
 }
 
 function getTrayImage(playing) {
+  if (IS_MAC) {
+    const macFile = playing ? 'trayMacLiveTemplate.png' : 'trayMacTemplate.png';
+    const macPath = path.join(__dirname, '..', 'assets', macFile);
+    if (fs.existsSync(macPath)) {
+      const img = nativeImage.createFromPath(macPath);
+      img.setTemplateImage(true);
+      return img;
+    }
+  }
   const iconFile = playing ? 'tray-playing.png' : 'tray-idle.png';
   const fullPath = path.join(__dirname, '..', 'assets', iconFile);
   if (fs.existsSync(fullPath)) {
     return nativeImage.createFromPath(fullPath);
   }
-  const fallback = path.join(__dirname, '..', 'assets', 'icon.ico');
+  const fallback = path.join(__dirname, '..', 'assets', IS_MAC ? 'icon.png' : 'icon.ico');
   return fs.existsSync(fallback) ? nativeImage.createFromPath(fallback) : nativeImage.createEmpty();
 }
 
@@ -330,20 +416,22 @@ function refreshTray() {
 
 function createTray() {
   tray = new Tray(getTrayImage(false));
-  tray.on('click', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isVisible()) {
-      if (mainWindow.isFocused()) {
-        mainWindow.hide();
+  if (!IS_MAC) {
+    tray.on('click', () => {
+      if (!mainWindow) return;
+      if (mainWindow.isVisible()) {
+        if (mainWindow.isFocused()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.focus();
+        }
       } else {
+        mainWindow.show();
         mainWindow.focus();
       }
-    } else {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-    refreshTray();
-  });
+      refreshTray();
+    });
+  }
   refreshTray();
 }
 
@@ -353,7 +441,7 @@ function createWindow() {
   const spec = DIMENSIONS[startMode];
   const pos = getValidInitialPosition(spec.width, spec.height, settings.bounds);
 
-  const iconPath = path.join(__dirname, '..', 'assets', 'icon.ico');
+  const iconPath = path.join(__dirname, '..', 'assets', IS_MAC ? 'icon.png' : 'icon.ico');
 
   mainWindow = new BrowserWindow({
     x: pos.x,
@@ -372,7 +460,7 @@ function createWindow() {
     fullscreenable: false,
     hasShadow: false,
     backgroundColor: '#00000000',
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    icon: !IS_MAC && fs.existsSync(iconPath) ? iconPath : undefined,
     title: 'SubWave Widget',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -398,7 +486,7 @@ function createWindow() {
   });
 
   mainWindow.on('close', (e) => {
-    if (!isQuitting && liveState.playing) {
+    if (!isQuitting && (liveState.playing || IS_MAC)) {
       e.preventDefault();
       mainWindow.hide();
       refreshTray();
@@ -425,17 +513,29 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     settings = loadSettings();
+    setupMacApplicationMenu();
+    applyMacDockVisibility(Boolean(settings.hideDockIcon));
     createTray();
     createWindow();
   });
 }
+
+app.on('activate', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+  } else {
+    mainWindow.show();
+    mainWindow.focus();
+    refreshTray();
+  }
+});
 
 app.on('before-quit', () => {
   isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (!IS_MAC) {
     app.quit();
   }
 });
@@ -453,6 +553,7 @@ ipcMain.handle('widget:update-settings', (_evt, patch) => {
     'volume',
     'muted',
     'alwaysOnTop',
+    'hideDockIcon',
     'mode',
   ]) {
     if (key in (patch || {})) allowed[key] = patch[key];
@@ -460,6 +561,9 @@ ipcMain.handle('widget:update-settings', (_evt, patch) => {
   const updated = saveSettings(allowed);
   if ('alwaysOnTop' in allowed) {
     applyAlwaysOnTop(mainWindow, Boolean(allowed.alwaysOnTop));
+  }
+  if ('hideDockIcon' in allowed) {
+    applyMacDockVisibility(Boolean(allowed.hideDockIcon));
   }
   refreshTray();
   return updated;
@@ -481,7 +585,7 @@ ipcMain.handle('widget:window-action', (_evt, action) => {
     mainWindow.hide();
     refreshTray();
   } else if (action === 'close') {
-    if (liveState.playing) {
+    if (liveState.playing || IS_MAC) {
       mainWindow.hide();
       refreshTray();
     } else {
