@@ -1,0 +1,64 @@
+{
+  "name": "subwave-widget",
+  "productName": "SubWave Widget",
+  "version": "1.0.0",
+  "description": "Compact Windows desktop radio widget for self-hosted SUB/WAVE stations",
+  "main": "src/main.js",
+  "author": "Wylie Butler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wyliebutler/Subwave_widget.git"
+  },
+  "homepage": "https://github.com/wyliebutler/Subwave_widget#readme",
+  "bugs": {
+    "url": "https://github.com/wyliebutler/Subwave_widget/issues"
+  },
+  "scripts": {
+    "icon": "node scripts/generate-icon.js",
+    "start": "electron .",
+    "pack": "npm run icon && electron-builder --dir",
+    "dist": "npm run icon && electron-builder --win nsis portable"
+  },
+  "build": {
+    "appId": "org.subwave.desktop-widget",
+    "productName": "SubWave Widget",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "SubWave-Widget-Setup.exe"
+    },
+    "portable": {
+      "artifactName": "SubWave-Widget-Portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  }
+}

@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SubWave Widget</title>
+    <!-- Curated SubWave Display + Monospace Google Fonts (graceful offline fallbacks in CSS) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Chakra+Petch:wght@500;700&family=Courier+Prime:wght@400;700&family=DM+Mono:wght@400;500&family=Doto:wght@600;800&family=Fira+Code:wght@400;600&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&family=Overpass+Mono:wght@400;600&family=Saira+Stencil+One&family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Exact SubWave SVG Filters for Phosphor (bloom) & Riso (two-drum misregister) -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false" class="svg-defs">
+      <defs>
+        <filter
+          id="sw-finish-bloom"
+          x="-5%"
+          y="-5%"
+          width="110%"
+          height="110%"
+          color-interpolation-filters="sRGB"
+        >
+          <feColorMatrix
+            in="SourceGraphic"
+            type="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0.3 0.6 0.1 0 -0.2"
+            result="lum"
+          />
+          <feGaussianBlur in="lum" stdDeviation="2.2" result="glow" />
+          <feBlend in="glow" in2="SourceGraphic" mode="screen" />
+        </filter>
+        <filter
+          id="sw-finish-misregister"
+          x="-2%"
+          y="-2%"
+          width="104%"
+          height="104%"
+          color-interpolation-filters="sRGB"
+        >
+          <feColorMatrix
+            in="SourceGraphic"
+            type="matrix"
+            values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -0.64 -0.64 -0.64 0 1.41"
+            result="inkA"
+          />
+          <feMorphology in="inkA" operator="erode" radius="0.6" result="boldInk" />
+          <feFlood id="misregister-flood" flood-color="#f02d84" flood-opacity="0.68" result="drum" />
+          <feComposite in="drum" in2="boldInk" operator="in" result="drumInk" />
+          <feOffset in="drumInk" dx="1.4" dy="0.9" result="ghost" />
+          <feBlend in="SourceGraphic" in2="ghost" mode="multiply" />
+        </filter>
+      </defs>
+    </svg>
+
+    <div id="widget-frame" class="widget-frame mode-card">
+      <div class="widget-shell">
+        <div class="sw-theme-stage" id="theme-stage">
+          <!-- ============================================================== -->
+          <!-- FIRST-RUN / STATION CONNECT VIEW                               -->
+          <!-- ============================================================== -->
+          <section id="setup-view" class="setup-view hidden">
+            <header class="masthead drag-region">
+              <div class="masthead-left">
+                <span class="status-led online"></span>
+                <span class="station-name">SUB/WAVE WIDGET</span>
+              </div>
+              <div class="window-actions no-drag">
+                <button
+                  id="setup-btn-back"
+                  class="icon-btn hidden"
+                  type="button"
+                  title="Back to Player"
+                  aria-label="Back to Player"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <button
+                  id="setup-btn-pin"
+                  class="icon-btn active"
+                  type="button"
+                  title="Pin Always on Top"
+                  aria-label="Pin Always on Top"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 17v5" />
+                    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
+                  </svg>
+                </button>
+                <button
+                  id="setup-btn-close"
+                  class="icon-btn close-btn"
+                  type="button"
+                  title="Quit"
+                  aria-label="Quit"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </header>
+
+            <div class="setup-body no-drag">
+              <div class="setup-copy drag-region">
+                <h1 class="setup-title">Tune in to a station</h1>
+                <p class="setup-sub">Enter the URL of any self-hosted SUB/WAVE radio station.</p>
+              </div>
+
+              <form id="setup-form" class="setup-form">
+                <div class="setup-input-row">
+                  <input
+                    id="setup-url-input"
+                    class="setup-input"
+                    type="text"
+                    spellcheck="false"
+                    autocomplete="off"
+                    placeholder="https://radio.example.com"
+                    aria-label="SubWave Station URL"
+                  />
+                  <button id="setup-submit-btn" class="setup-connect-btn" type="submit">
+                    Tune In
+                  </button>
+                </div>
+
+                <div id="setup-pass-row" class="setup-pass-row hidden">
+                  <input
+                    id="setup-pass-input"
+                    class="setup-input"
+                    type="password"
+                    spellcheck="false"
+                    placeholder="Station listener password (private station)"
+                    aria-label="Listener Password"
+                  />
+                </div>
+              </form>
+
+              <div class="setup-footer">
+                <span id="setup-status" class="setup-status">Supports all station themes &amp; live streams.</span>
+                <div id="setup-saved-list" class="setup-saved-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================================================== -->
+          <!-- COMPACT CARD VIEW                                              -->
+          <!-- ============================================================== -->
+          <section id="card-view" class="card-view hidden">
+            <!-- Top Draggable Masthead -->
+            <header class="masthead drag-region">
+              <div class="masthead-left">
+                <span id="status-led" class="status-led" title="Broadcast status"></span>
+                <span id="station-name" class="station-name">SUB/WAVE RADIO</span>
+                <span id="dj-badge" class="dj-badge"></span>
+              </div>
+
+              <div class="window-actions no-drag">
+                <button
+                  id="btn-themes"
+                  class="icon-btn"
+                  type="button"
+                  title="Appearance, Themes & Station"
+                  aria-label="Appearance and Themes"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.5-4.5-9.99-10-9.99z" />
+                  </svg>
+                </button>
+
+                <button
+                  id="btn-pill-mode"
+                  class="icon-btn"
+                  type="button"
+                  title="Collapse to Ultra-Mini Pill Bar"
+                  aria-label="Collapse to Pill Bar"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="8" width="18" height="8" rx="4" />
+                  </svg>
+                </button>
+
+                <button
+                  id="btn-pin"
+                  class="icon-btn active"
+                  type="button"
+                  title="Pin Always on Top"
+                  aria-label="Pin Always on Top"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 17v5" />
+                    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
+                  </svg>
+                </button>
+
+                <button
+                  id="btn-close"
+                  class="icon-btn close-btn"
+                  type="button"
+                  title="Hide to Tray when playing / Quit when stopped (Right-click anywhere for menu)"
+                  aria-label="Close or Hide to Tray"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </header>
+
+            <!-- Main Track Stage -->
+            <div class="stage drag-region">
+              <div class="cover-box no-drag" id="cover-box" title="Current Album Art">
+                <svg class="cover-fallback" viewBox="0 0 80 80" aria-hidden="true">
+                  <rect width="80" height="80" fill="var(--field)" />
+                  <circle cx="40" cy="40" r="31" fill="#11100f" stroke="var(--soft-border)" stroke-width="1" />
+                  <circle cx="40" cy="40" r="24" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="0.7" />
+                  <circle cx="40" cy="40" r="18" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="0.7" />
+                  <circle cx="40" cy="40" r="11.5" fill="var(--accent)" />
+                  <circle cx="40" cy="40" r="3" fill="#11100f" />
+                </svg>
+                <img id="cover-img" class="cover-img hidden" alt="" draggable="false" />
+                <div id="eq-badge" class="eq-badge hidden" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+
+              <div class="meta-col">
+                <div class="marquee-wrap" id="title-wrap">
+                  <div class="marquee-track" id="title-marquee">
+                    <span id="track-title" class="track-title">Connecting to station…</span>
+                  </div>
+                </div>
+                <div id="track-artist" class="track-artist">SUB/WAVE Radio</div>
+                <div id="track-album" class="track-album">—</div>
+                <div class="telemetry-row">
+                  <span id="track-tags" class="track-tags">LIVE STREAM</span>
+                  <span id="track-clock" class="track-clock">--:-- / --:--</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Track Progress Hairline -->
+            <div class="progress-rail" aria-hidden="true">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+
+            <!-- Compact Transport Deck -->
+            <footer class="transport no-drag">
+              <div class="transport-left">
+                <button id="btn-play" class="play-btn" type="button" title="Play / Stop Live Broadcast (Space)">
+                  <svg id="icon-play" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                    <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.02-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z" />
+                  </svg>
+                  <svg id="icon-stop" class="hidden" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                  <span id="icon-spinner" class="spinner hidden"></span>
+                </button>
+                <div class="stream-state-stack">
+                  <span id="playback-label" class="playback-label">STANDBY</span>
+                  <span id="bitrate-label" class="bitrate-label">MP3</span>
+                </div>
+              </div>
+
+              <div class="volume-zone" id="volume-zone" title="Scroll or drag to adjust volume">
+                <button id="btn-mute" class="icon-btn mute-btn" type="button" title="Mute / Unmute (M)">
+                  <svg id="icon-vol-on" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                  </svg>
+                  <svg id="icon-vol-off" class="hidden" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="23" y1="9" x2="17" y2="15" />
+                    <line x1="17" y1="9" x2="23" y2="15" />
+                  </svg>
+                </button>
+                <input
+                  id="volume-slider"
+                  class="volume-slider"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="80"
+                  aria-label="Volume"
+                />
+              </div>
+
+              <div class="transport-right">
+                <span id="listeners-pill" class="listeners-pill" title="Current listeners">0</span>
+                <button
+                  id="btn-open-web"
+                  class="icon-btn"
+                  type="button"
+                  title="Open Station in Browser"
+                  aria-label="Open Full Web Player"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </button>
+              </div>
+            </footer>
+
+            <!-- ============================================================ -->
+            <!-- APPEARANCE / THEME DRAWER                                    -->
+            <!-- ============================================================ -->
+            <div id="theme-drawer" class="theme-drawer hidden no-drag">
+              <div class="drawer-header">
+                <span class="drawer-title">THEMES</span>
+                <div class="drawer-header-actions">
+                  <button
+                    id="btn-follow-station"
+                    class="follow-station-btn active"
+                    type="button"
+                    title="Automatically follow the station's active theme"
+                  >
+                    Use station default
+                  </button>
+                  <button
+                    id="btn-refresh-themes"
+                    class="icon-btn"
+                    type="button"
+                    title="Refresh themes from station"
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                      <path d="M16 16h5v5" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div id="theme-grid" class="theme-grid" role="radiogroup" aria-label="Station Themes"></div>
+
+              <div id="theme-caption" class="theme-caption">Classic Dark</div>
+
+              <div class="station-url-row">
+                <span id="drawer-station-label" class="drawer-station-label" title="Connected station"></span>
+                <button id="btn-change-station" class="station-save-btn" type="button">
+                  Switch Station…
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================================================== -->
+          <!-- ULTRA-MINI PILL BAR VIEW (~50px strip)                         -->
+          <!-- ============================================================== -->
+          <section id="pill-view" class="pill-view hidden">
+            <div class="pill-art-wrap no-drag" id="pill-art-wrap">
+              <svg class="cover-fallback" viewBox="0 0 80 80" aria-hidden="true">
+                <rect width="80" height="80" fill="var(--field)" />
+                <circle cx="40" cy="40" r="30" fill="#11100f" />
+                <circle cx="40" cy="40" r="12" fill="var(--accent)" />
+                <circle cx="40" cy="40" r="3" fill="#11100f" />
+              </svg>
+              <img id="pill-cover-img" class="cover-img hidden" alt="" draggable="false" />
+            </div>
+
+            <button id="pill-btn-play" class="play-btn pill-play-btn no-drag" type="button" title="Play / Stop">
+              <svg id="pill-icon-play" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.02-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z" />
+              </svg>
+              <svg id="pill-icon-stop" class="hidden" viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+              <span id="pill-icon-spinner" class="spinner spinner-sm hidden"></span>
+            </button>
+
+            <div class="pill-meta drag-region">
+              <div class="marquee-wrap" id="pill-title-wrap">
+                <div class="marquee-track" id="pill-title-marquee">
+                  <span id="pill-track-title" class="pill-track-title">SUB/WAVE Radio</span>
+                </div>
+              </div>
+              <div id="pill-track-artist" class="pill-track-artist">Ready</div>
+            </div>
+
+            <div class="pill-actions no-drag" id="pill-volume-zone" title="Scroll to adjust volume">
+              <button id="pill-btn-mute" class="icon-btn" type="button" title="Mute / Unmute (Scroll for volume)">
+                <svg id="pill-icon-vol-on" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                </svg>
+                <svg id="pill-icon-vol-off" class="hidden" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              </button>
+
+              <button id="pill-btn-pin" class="icon-btn active" type="button" title="Pin Always on Top">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 17v5" />
+                  <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z" />
+                </svg>
+              </button>
+
+              <button id="pill-btn-expand" class="icon-btn" type="button" title="Expand to Compact Card">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="pill-progress-rail" aria-hidden="true">
+              <div id="pill-progress-fill" class="progress-fill"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <audio id="radio-audio" preload="none" crossorigin="anonymous"></audio>
+
+    <script src="./themes-fallback.js"></script>
+    <script src="./renderer.js"></script>
+  </body>
+</html>
